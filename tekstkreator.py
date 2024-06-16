@@ -7,17 +7,14 @@ from myfunc.mojafunkcija import (
     positive_login,
     show_logo, initialize_session_state, 
     check_openai_errors, 
-    read_txts
+    read_txts, 
+    copy_to_clipboard
 )
 from myfunc.prompts import PromptDatabase, ConversationDatabase
 from myfunc.varvars_dicts import work_vars, work_prompts
-import streamlit.components.v1 as components
-import html
 
 client = OpenAI()
-
 version = "24.04.24"
-
 mprompts = work_prompts()
 
 default_values = {
@@ -42,16 +39,14 @@ default_values = {
 }
 
 initialize_session_state(default_values)
+
 if st.session_state.thread_id not in st.session_state.messages:
     #st.session_state.messages[st.session_state.thread_id] = [{'role': 'system', 'content': mprompts["sys_ragbot"]}]
     st.session_state.messages[st.session_state.thread_id] = [{'role': 'system', 'content': "Ti si expert za pisanje tekstova na srpskom jeziku, narocito u oblasti IT services i digitalne transfomacije. Kreiraj opsirne tekstove iz zadate teme, uvek na srpskom jeziku"}]
 if "temp" not in st.session_state:
     st.session_state.temp=0.0
        
-initialize_session_state(default_values)
-
-st.subheader("ChatGPT - kreira tekstove")
-
+st.subheader("Blogger - kreira tekstove")
 with st.expander("Uputstvo"):
     st.caption("### Upotreba Kreatora Tekstova \n" 
                " Na osnovu uploadovanih dokumenata zadajte instrukcije za pisanje teksta." 
@@ -61,55 +56,6 @@ with st.expander("Uputstvo"):
                " U ovoj verziji Asistent nema pristup ni internetu ni internim podacima kompanije!")
     st.caption(
                " COMING SOON - Mozete koristiti biblioteku instrukcija.")
-
-def copy_to_clipboard(message):
-    sanitized_message = html.escape(message)  # Escape the message to handle special HTML characters
-    # Create an HTML button with embedded JavaScript for clipboard functionality and custom CSS
-    html_content = f"""
-    <html>
-    <head>
-        <style>
-            #copyButton {{
-                background-color: #454654;  /* Dark gray background */
-                color: #f1f1f1;            /* Our white text color */
-                border: none;           /* No border */
-                border-radius: 8px;     /* Rounded corners */
-                cursor: pointer;        /* Pointer cursor on hover */
-                outline: none;          /* No focus outline */
-                font-size: 20px;        /* Size */
-            }}
-            #textArea {{
-                opacity: 0; 
-                position: absolute; 
-                pointer-events: none;
-            }}
-        </style>
-    </head>
-    <body>
-    <textarea id="textArea">{sanitized_message}</textarea>
-    <textarea id="textArea" style="opacity: 0; position: absolute; pointer-events: none;">{sanitized_message}</textarea>
-    <button id="copyButton" onclick='copyTextToClipboard()'>📄</button>
-    <script>
-    function copyTextToClipboard() {{
-        var textArea = document.getElementById("textArea");
-        var copyButton = document.getElementById("copyButton");
-        textArea.style.opacity = 1;
-        textArea.select();
-        try {{
-            var successful = document.execCommand('copy');
-            var msg = successful ? '✔️' : '❌';
-            copyButton.innerText = msg;
-        }} catch (err) {{
-            copyButton.innerText = 'Failed!';
-        }}
-        textArea.style.opacity = 0;
-        setTimeout(function() {{ copyButton.innerText = "📄"; }}, 3000);  // Change back after 3 seconds
-    }}
-    </script>
-    </body>
-    </html>
-    """
-    components.html(html_content, height=50)
 
 def main():
     if "username" not in st.session_state:
@@ -138,7 +84,6 @@ def main():
         st.session_state.messages = {}
     if "thread_id" not in st.session_state:
         st.session_state.thread_id = None
-
 
     with st.sidebar:
         show_logo()
@@ -189,7 +134,6 @@ def main():
                 except Exception as e:
                     st.error(f"Failed to delete record: {e}")
 
-
     with st.sidebar:
         ### ovde ide multifile uploader
         image_ai, vrsta = read_txts()
@@ -214,7 +158,6 @@ def main():
             # If not, initialize it with the conversation from the database or as an empty list
             with ConversationDatabase() as db:
                 st.session_state.messages[current_thread_id] = db.query_sql_record(app_name, st.session_state.username, current_thread_id) or []
-               
     
         if current_thread_id in st.session_state.messages:
                 # avatari primena
@@ -241,10 +184,8 @@ def main():
         if prompt := st.chat_input("Kako vam mogu pomoci?"):
             context = image_ai  # ovde ce ici iz uploaded files iz kotbotnovi            
             complete_prompt = prompt + " " + context
-        
             # Append user prompt to the conversation
             st.session_state.messages[current_thread_id].append({"role": "user", "content": complete_prompt})
-        
             # Display user prompt in the chat
             with st.chat_message("user", avatar=avatar_user):
                 st.markdown(prompt)

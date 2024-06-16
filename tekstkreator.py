@@ -49,8 +49,9 @@ if "temp" not in st.session_state:
 st.subheader("Blogger - kreira tekstove")
 with st.expander("Uputstvo"):
     st.caption("### Upotreba Kreatora Tekstova \n" 
-               " Na osnovu uploadovanih dokumenata zadajte instrukcije za pisanje teksta." 
-               " Sa strane mozete podesiti temperaturu u zavisnosti od toga koliko kreativan odgovor zelite."
+               " Bloggera mogu da koriste samo logovani korsinici sa pravom pristupa.")
+    st.caption(" Na osnovu uploadovanih dokumenata zadajte instrukcije za pisanje teksta." 
+               " Sa strane mozete podesiti temperaturu u zavisnosti od toga koliko kreativan odgovor zelite. \n\n"
                " Nakon prve verzije mozete traziti ispravke. Uvek mozete nastaviti istu konverzaciju kasnije." 
                " Mozete sacuvati konverzaciju ili konkretan odgovor."
                " U ovoj verziji Asistent nema pristup ni internetu ni internim podacima kompanije!")
@@ -93,7 +94,7 @@ def main():
 
         if operation == "New Conversation":
             st.caption("Create a New Conversation")
-            thread_name_input = st.text_input("Thread Name (optional)")
+            thread_name_input = st.text_input("Thread Name (optional) POTVRDITE SA ENTER!")
 
             if st.button("Create"):
                 new_thread_id = str(uuid.uuid4())
@@ -230,4 +231,4 @@ if deployment_environment == "Streamlit":
 else:
     ### ovde ide iz kontrole tokena
     if __name__ == "__main__":
-        main()
+         check_openai_errors(main)

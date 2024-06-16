@@ -37,7 +37,7 @@ default_values = {
     "username": "positive",
     "openai_model": work_vars["names"]["openai_model"],
     "azure_filename": "altass.csv",
-    "app_name": "BlogBot",
+    "app_name": "TekstKreator",
     "upload_key": 0,
 }
 

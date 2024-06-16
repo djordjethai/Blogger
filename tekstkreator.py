@@ -221,7 +221,7 @@ def main():
                         "⤓ Preuzmi", 
                         st.session_state.filtered_messages, 
                         file_name="istorija.txt", 
-                        help = "Čuvanje zadatog prompta"
+                        help = "Čuvanje istorije ovog razgovora"
                         )
        
 deployment_environment = os.environ.get("DEPLOYMENT_ENVIRONMENT")

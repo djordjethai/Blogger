@@ -16,7 +16,20 @@ from myfunc.varvars_dicts import work_vars, work_prompts
 client = OpenAI()
 mprompts = work_prompts()
 
-        
+def sidebar_width(width):
+    st.markdown(
+        f"""
+        <style>
+            section[data-testid="stSidebar"] {{
+                width: {width} !important; # Set the width to your desired value
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    
+sidebar_width(550)
+
 default_values = {
     "prozor": st.query_params.get('prozor', "d"),
     "_last_speech_to_text_transcript_id": 0,

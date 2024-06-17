@@ -1,6 +1,5 @@
 
 import os, uuid
-from turtle import width
 import streamlit as st
 from openai import OpenAI
 from myfunc.asistenti import read_aad_username

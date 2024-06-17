@@ -1,5 +1,6 @@
 
 import os, uuid
+from turtle import width
 import streamlit as st
 from openai import OpenAI
 from myfunc.asistenti import read_aad_username
@@ -8,15 +9,15 @@ from myfunc.mojafunkcija import (
     show_logo, initialize_session_state, 
     check_openai_errors, 
     read_txts, 
-    copy_to_clipboard
-)
-from myfunc.prompts import PromptDatabase, ConversationDatabase
+    copy_to_clipboard)
+from myfunc.pyui_javascript import chat_placeholder_color
+from myfunc.prompts import ConversationDatabase, PromptDatabase
 from myfunc.varvars_dicts import work_vars, work_prompts
 
 client = OpenAI()
-version = "24.04.24"
 mprompts = work_prompts()
 
+        
 default_values = {
     "prozor": st.query_params.get('prozor', "d"),
     "_last_speech_to_text_transcript_id": 0,
@@ -39,14 +40,42 @@ default_values = {
 }
 
 initialize_session_state(default_values)
+chat_placeholder_color("#f1f1f1")
 
 if st.session_state.thread_id not in st.session_state.messages:
-    #st.session_state.messages[st.session_state.thread_id] = [{'role': 'system', 'content': mprompts["sys_ragbot"]}]
-    st.session_state.messages[st.session_state.thread_id] = [{'role': 'system', 'content': "Ti si expert za pisanje tekstova na srpskom jeziku, narocito u oblasti IT services i digitalne transfomacije. Kreiraj opsirne tekstove iz zadate teme, uvek na srpskom jeziku"}]
+    st.session_state.messages[st.session_state.thread_id] = [{'role': 'system', 'content': mprompts["sys_blogger"]}]
+
 if "temp" not in st.session_state:
     st.session_state.temp=0.0
+
+
+def add_template(kw):
+    # Condition filter for prompts
+    with PromptDatabase() as db:
+        prompt_details = db.get_prompts_contain_in_name(kw)
+        template_list = [detail["PromptString"] for detail in prompt_details]    
+    with st.sidebar:
+        with st.popover("Izaberite Prompt Template"):
+            return st.radio("Izaberite tekst", template_list, index=None) 
+            
+    
+def allow_template_value(default_chat_input_value):    
+    js = f"""
+        <script>
+            function insertText(dummy_var_to_force_repeat_execution) {{
+                var chatInput = parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
+                var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+                nativeInputValueSetter.call(chatInput, "{default_chat_input_value}");
+                var event = new Event('input', {{ bubbles: true}});
+                chatInput.dispatchEvent(event);
+            }}
+            insertText({len(st.session_state.messages)});
+        </script>
+        """
+    st.components.v1.html(js)
        
 st.subheader("Blogger - kreira tekstove")
+st.caption("17.06.24")
 with st.expander("Uputstvo"):
     st.caption("### Upotreba Kreatora Tekstova \n" 
                " Bloggera mogu da koriste samo logovani korsinici sa pravom pristupa.")
@@ -55,8 +84,7 @@ with st.expander("Uputstvo"):
                " Nakon prve verzije mozete traziti ispravke. Uvek mozete nastaviti istu konverzaciju kasnije." 
                " Mozete sacuvati konverzaciju ili konkretan odgovor."
                " U ovoj verziji Asistent nema pristup ni internetu ni internim podacima kompanije!")
-    st.caption(
-               " COMING SOON - Mozete koristiti biblioteku instrukcija.")
+    st.caption(" Mozete koristiti biblioteku instrukcija.")
 
 def main():
     if "username" not in st.session_state:
@@ -67,8 +95,8 @@ def main():
         st.session_state.username = "lokal"
     elif deployment_environment == "Streamlit":
         st.session_state.username = username
-    #conversation_data = [{'role': 'system', 'content': mprompts["sys_ragbot"]}]
-    conversation_data = [{'role': 'system', 'content': "Ti si expert za pisanje tekstova na srpskom jeziku, narocito u oblasti IT services i digitalne transfomacije. Kreiraj opsirne tekstove iz zadate teme, uvek na srpskom jeziku"}]
+    conversation_data = [{'role': 'system', 'content': mprompts["sys_blogger"]}]
+    
     app_name = "TekstKreator"
     def get_thread_ids():
         with ConversationDatabase() as db:
@@ -88,56 +116,58 @@ def main():
 
     with st.sidebar:
         show_logo()
-        st.caption("16.06.24")
+       
         st.session_state.temp=st.slider("Temperatura", 0.0, 1.0, 0.0, 0.1)
-        operation = st.selectbox("Choose operation", ["New Conversation", "Load Conversation", "Delete Conversation"])
+        with st.popover("Kreirajte novi ili učitajte postojeći razgovor"):
+            operation = st.selectbox("Izaberite", ["Novi razgovor", "Učitajte postojeći", "Obrišite"])
 
-        if operation == "New Conversation":
-            st.caption("Create a New Conversation")
-            thread_name_input = st.text_input("Thread Name (optional) POTVRDITE SA ENTER!")
+            if operation == "Novi razgovor":
+                st.caption("Kreirajte novi razgovor")
+                thread_name_input = st.text_input("Unesite ime razgovora (opciono) i POTVRDITE SA ENTER!")
 
-            if st.button("Create"):
-                new_thread_id = str(uuid.uuid4())
-                thread_name = thread_name_input if thread_name_input else f"Thread_{new_thread_id}"
-                #conversation_data = [{'role': 'system', 'content': mprompts["sys_ragbot"]}]
-                conversation_data = [{'role': 'system', 'content': "Ti si expert za pisanje tekstova na srpskom jeziku, narocito u oblasti IT services i digitalne transfomacije. Kreiraj opsirne tekstove iz zadate teme, uvek na srpskom jeziku"}]
-                # Check if the thread ID already exists
-                if thread_name not in get_thread_ids():
-                    with ConversationDatabase() as db:
-                        db.add_sql_record(app_name, st.session_state.username, thread_name, conversation_data)
-                    st.success(f"Record {thread_name} added successfully.")
-                    st.session_state.thread_id = thread_name
-                else:
-                    st.error("Thread ID already exists.")
+                if st.button("Kreiraj"):
+                    new_thread_id = str(uuid.uuid4())
+                    thread_name = thread_name_input if thread_name_input else f"Thread_{new_thread_id}"
+                    conversation_data = [{'role': 'system', 'content': mprompts["sys_blogger"]}]
+                    
+                    # Check if the thread ID already exists
+                    if thread_name not in get_thread_ids():
+                        with ConversationDatabase() as db:
+                            db.add_sql_record(app_name, st.session_state.username, thread_name, conversation_data)
+                        st.success(f"Razgovor {thread_name} je uspešno kreiran.")
+                        st.session_state.thread_id = thread_name
+                    else:
+                        st.error("Razgovor već postoji.")
                             
-        elif operation == "Load Conversation":
-                st.caption("Load an Existing Conversation")
+            elif operation == "Učitajte postojeći":
+                    st.caption("Učitajte postojeći razgovor")
+                    thread_ids = get_thread_ids()
+                    selected_thread_id = st.selectbox("Odaberite razgovor", thread_ids)
+
+                    if st.button("Odaberi"):
+                        with ConversationDatabase() as db:
+                            db.query_sql_record(app_name, st.session_state.username, selected_thread_id)
+                        st.success(f"Razgovor uspešno učitan {selected_thread_id}.")
+                        st.session_state.thread_id =  selected_thread_id
+
+            elif operation == "Obrišite":
+                st.caption("Obrišite postojeći razgovor")
                 thread_ids = get_thread_ids()
-                selected_thread_id = st.selectbox("Select Thread ID", thread_ids)
+                selected_thread_id = st.selectbox("Odaberite razgovor", thread_ids)
 
-                if st.button("Select"):
-                    with ConversationDatabase() as db:
-                        db.query_sql_record(app_name, st.session_state.username, selected_thread_id)
-                    st.success(f"Record loaded successfully {selected_thread_id}.")
-                    st.session_state.thread_id =  selected_thread_id
-
-        elif operation == "Delete Conversation":
-            st.caption("Delete an Existing Conversation")
-            thread_ids = get_thread_ids()
-            selected_thread_id = st.selectbox("Select Thread ID", thread_ids)
-
-            if st.button("Delete"):
-                try:
-                    with ConversationDatabase() as db:
-                        db.delete_sql_record(app_name, st.session_state.username, selected_thread_id)
-                    st.success(f"Record {selected_thread_id} deleted successfully.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Failed to delete record: {e}")
+                if st.button("Obriši"):
+                    try:
+                        with ConversationDatabase() as db:
+                            db.delete_sql_record(app_name, st.session_state.username, selected_thread_id)
+                        st.success(f"Razgovor {selected_thread_id} je uspešno obrisan.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Nisam uspeo da obrišem razgovor: {e}")
 
     with st.sidebar:
         ### ovde ide multifile uploader
-        image_ai, vrsta = read_txts()
+        with st.popover("Učitajte dokumente za kreiranje teksta"):
+            image_ai, _ = read_txts()
     # Display the existing messages in the current thread
     #  Ensure `messages` and `thread_id` are initialized in session state
     if "messages" not in st.session_state:
@@ -151,7 +181,7 @@ def main():
     avatar_sys= "bot.png"
     ### Main application logic ovde ide iz klotbotnovi
     if st.session_state.thread_id is None:
-        st.info("Start a conversation by selecting a new or existing conversation.")
+        st.info("Započnite razgovor učitavanjem postojećeg ili kreiranjem novog.")
     else:
         current_thread_id = st.session_state.thread_id
         # Check if there's an existing conversation in the session state
@@ -175,6 +205,7 @@ def main():
                     elif message["role"] == "user":         
                         with st.chat_message(message["role"], avatar=avatar_user):
                              st.markdown(message["content"])
+                             copy_to_clipboard(message["content"])
                     elif message["role"] == "system":
                             pass
                     else:        
@@ -182,15 +213,22 @@ def main():
                              st.markdown(message["content"])
                
         # Handle new user input
-        if prompt := st.chat_input("Kako vam mogu pomoci?"):
-            context = image_ai  # ovde ce ici iz uploaded files iz kotbotnovi            
+        full_template = add_template("blog_template") 
+        if full_template:
+            allow_template_value(full_template)                        
+        if prompt := st.chat_input("Opišite dokument koji želite da kreiram"):
+            if image_ai:
+                context = image_ai
+            else:
+                context = ""
             complete_prompt = prompt + " " + context
+            
             # Append user prompt to the conversation
             st.session_state.messages[current_thread_id].append({"role": "user", "content": complete_prompt})
             # Display user prompt in the chat
             with st.chat_message("user", avatar=avatar_user):
                 st.markdown(prompt)
-               
+                copy_to_clipboard(prompt)
             # Generate and display the assistant's response
             with st.chat_message("assistant", avatar=avatar_ai):
                 message_placeholder = st.empty()
@@ -210,9 +248,6 @@ def main():
             filtered_data = [entry for entry in st.session_state.messages[current_thread_id] if entry['role'] in ["user", 'assistant']]
             for item in filtered_data:  # lista za download conversation
                 st.session_state.filtered_messages += (f"{item['role']}: {item['content']}\n")  
-            # Append assistant's response to the conversation
-          
-         
             # Update the conversation in the database
             with ConversationDatabase() as db:
                 db.update_sql_record(app_name, st.session_state.username, current_thread_id, st.session_state.messages[current_thread_id])
